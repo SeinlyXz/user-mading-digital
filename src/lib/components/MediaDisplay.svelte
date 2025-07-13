@@ -65,7 +65,9 @@
         clearImageTimer();
         slideEnded = true;
       }, 4000); // Small delay to ensure transition completes
-    }
+    } else {
+			slideEnded = false;
+		}
   })
 </script>
 
