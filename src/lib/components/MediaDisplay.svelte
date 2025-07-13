@@ -57,14 +57,14 @@
       // Auto-advance images every 10 seconds
       imageTimer = setTimeout(() => {
         nextSlide();
-      }, 10000);
+      }, 5000);
     }
     if (currentIndex === mediaItems.length - 1) {
       // If at the last item, clear the timer to prevent auto-advance
       setTimeout(() => {
         clearImageTimer();
         slideEnded = true;
-      }, 9000); // Small delay to ensure transition completes
+      }, 4000); // Small delay to ensure transition completes
     }
   })
 </script>
