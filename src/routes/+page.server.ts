@@ -1,10 +1,15 @@
 import { env } from '$env/dynamic/private';
+import type { MediaResponse, PresensiResponse } from '$lib/types/all_types';
 
 export const load = async () => {
 	try {
-		const data = await fetch(env.API_URL + '/media');
+		const [data, live_siswa] = await Promise.all([
+			fetch(env.API_URL + '/media'),
+			fetch('https://ma.krapyak.id/api/livesiswa.php')
+		]);
 		return {
-			data: (await data.json()) as MediaResponse
+			data: (await data.json()) as MediaResponse,
+			live_siswa: await live_siswa.json() as PresensiResponse
 		};
 	} catch (error) {
 		return {
@@ -27,53 +32,3 @@ export const load = async () => {
 		};
 	}
 };
-
-export interface MediaResponse {
-	success: boolean;
-	message: string;
-	data: {
-		items: MediaItem[];
-		pagination: Pagination;
-	};
-}
-
-export interface MediaItem {
-	id: number;
-	uuid: string;
-	filename: string;
-	original_name: string;
-	mime_type: string;
-	extension: string;
-	size: number;
-	size_formatted: string;
-	disk: string;
-	path: string;
-	url: string;
-	full_url: string;
-	type: 'video' | 'image';
-	description: string | null;
-	metadata: VideoMetadata | ImageMetadata;
-	created_at: string;
-	updated_at: string;
-}
-
-export interface VideoMetadata {
-	type: 'video';
-	file_size: number;
-}
-
-export interface ImageMetadata {
-	width: number;
-	height: number;
-	aspect_ratio: number;
-}
-
-export interface Pagination {
-	current_page: number;
-	per_page: number;
-	total: number;
-	last_page: number;
-	from: number;
-	to: number;
-	has_more_pages: boolean;
-}
