@@ -1,7 +1,9 @@
 import { env } from '$env/dynamic/private';
+import { Invalidate } from '$lib/enums/invalidate.js';
 import type { MediaResponse, PresensiResponse } from '$lib/types/all_types';
 
-export const load = async () => {
+export const load = async (event) => {
+  event.depends(Invalidate.Media);
 	try {
 		const [data, live_siswa] = await Promise.all([
 			fetch(env.API_URL + '/media'),

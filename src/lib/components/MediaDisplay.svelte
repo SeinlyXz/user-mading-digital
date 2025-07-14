@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { invalidate } from "$app/navigation";
+	import { Invalidate } from "$lib/enums/invalidate";
+
 	let {
 		data,
 		slideEnded = $bindable(false) // Bindable to control slide end state
@@ -14,6 +17,7 @@
 			currentIndex = (currentIndex + 1) % mediaItems.length;
 			// Clear image timer when moving to next slide
 			clearImageTimer();
+			invalidate(Invalidate.Media);
 		}
 	}
 
