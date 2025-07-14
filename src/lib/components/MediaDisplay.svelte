@@ -1,19 +1,19 @@
 <script lang="ts">
-	let { 
-    data,
-    slideEnded = $bindable(false) // Bindable to control slide end state
-  } = $props();
+	let {
+		data,
+		slideEnded = $bindable(false) // Bindable to control slide end state
+	} = $props();
 
 	let currentIndex = $state(0);
 	let mediaItems = $state(data?.data?.data?.items || []);
 	let imageTimer: any = $state(null);
-  let currentItem = $derived(mediaItems[currentIndex]);
+	let currentItem = $derived(mediaItems[currentIndex]);
 
 	function nextSlide() {
 		if (mediaItems.length > 1) {
 			currentIndex = (currentIndex + 1) % mediaItems.length;
-      // Clear image timer when moving to next slide
-      clearImageTimer();
+			// Clear image timer when moving to next slide
+			clearImageTimer();
 		}
 	}
 
@@ -28,19 +28,15 @@
 	}
 
 	function handleVideoEnded() {
-		// If only 1 video, restart the same video
-		if (mediaItems.length === 1) {
-			const videoElement = document.querySelector('video');
-			if (videoElement) {
-				videoElement.currentTime = 0;
-				videoElement.play();
-			}
+		if (currentIndex < mediaItems.length - 1) {
+			// If video ends and not at last item, go to next slide
+			nextSlide();
 		} else {
-			// Auto-loop to next video/media when current video ends
-			// Add small delay for smooth transition
+			// If at last item, clear image timer and set slideEnded
+			console.log('Video ended, clearing timer and setting slideEnded');
 			setTimeout(() => {
-				nextSlide();
-			}, 100);
+				slideEnded = true;
+			}, 1000); // Small delay to ensure transition completes
 		}
 	}
 
@@ -51,24 +47,22 @@
 		}
 	}
 
-
-  $effect(()=>{
-    if(currentItem?.type === 'image' && imageTimer === null) {
-      // Auto-advance images every 10 seconds
-      imageTimer = setTimeout(() => {
-        nextSlide();
-      }, 5000);
-    }
-    if (currentIndex === mediaItems.length - 1) {
-      // If at the last item, clear the timer to prevent auto-advance
-      setTimeout(() => {
-        clearImageTimer();
-        slideEnded = true;
-      }, 4000); // Small delay to ensure transition completes
-    } else {
+	$effect(() => {
+		if (currentItem?.type === 'image' && imageTimer === null) {
+			// Auto-advance images every 5 seconds
+			imageTimer = setTimeout(() => {
+				nextSlide();
+			}, 5000);
+		}
+		if (currentIndex === mediaItems.length - 1 && currentItem?.type !== 'video') {
+			setTimeout(() => {
+				clearImageTimer();
+				slideEnded = true;
+			}, 4000);
+		} else {
 			slideEnded = false;
 		}
-  })
+	});
 </script>
 
 {#if mediaItems.length > 0}

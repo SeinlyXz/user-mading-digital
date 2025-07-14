@@ -18,29 +18,18 @@
     if (!tableContainer) return;
     
     const maxScroll = tableContainer.scrollHeight - tableContainer.clientHeight;
-    const scrollStep = 1; // pixels per step
+    const scrollStep = 5; // pixels per step
     
     if (isScrollingDown) {
       currentScrollPosition += scrollStep;
       if (currentScrollPosition >= maxScroll) {
         currentScrollPosition = maxScroll;
-        // scrolledToEnd = true;
-        // // Pause at bottom for 2 seconds before scrolling back up
         setTimeout(() => {
           isScrollingDown = false;
           scrolledToEnd = true;
         }, 2000);
       }
-    } else {
-      // currentScrollPosition -= scrollStep;
-      // if (currentScrollPosition <= 0) {
-      //   currentScrollPosition = 0;
-      //   // Pause at top for 2 seconds before scrolling down
-      //   setTimeout(() => {
-      //     isScrollingDown = true;
-      //   }, 2000);
-      // }
-    }
+    } 
     
     tableContainer.scrollTo({
       top: currentScrollPosition,
@@ -66,7 +55,7 @@
       if (data?.data?.length > 0) {
         gradualScroll();
       }
-    }, 30);
+    }, 50);
 
     return () => clearInterval(interval);
   });
