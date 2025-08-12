@@ -9,33 +9,15 @@ export interface MediaResponse {
 
 export interface MediaItem {
 	id: number;
-	uuid: string;
-	filename: string;
-	original_name: string;
-	mime_type: string;
-	extension: string;
-	size: number;
-	size_formatted: string;
-	disk: string;
 	path: string;
-	url: string;
-	full_url: string;
+	filename: string;
+	extension: string;
+	mime_type: string;
 	type: 'video' | 'image';
-	description: string | null;
-	metadata: VideoMetadata | ImageMetadata;
+	full_url: string;
+	file_exists: boolean;
 	created_at: string;
 	updated_at: string;
-}
-
-export interface VideoMetadata {
-	type: 'video';
-	file_size: number;
-}
-
-export interface ImageMetadata {
-	width: number;
-	height: number;
-	aspect_ratio: number;
 }
 
 export interface Pagination {

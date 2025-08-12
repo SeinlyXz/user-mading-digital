@@ -1,43 +1,79 @@
 <script lang="ts">
-	import { invalidate } from "$app/navigation";
-	import { Invalidate } from "$lib/enums/invalidate";
+	import { invalidate } from '$app/navigation';
+	import { Invalidate } from '$lib/enums/invalidate';
+	import type { MediaResponse } from '$lib/types/all_types.js';
+	import { Splide, SplideSlide } from '@splidejs/svelte-splide';
+	import '@splidejs/svelte-splide/css';
 
 	let {
-		data,
 		slideEnded = $bindable(false) // Bindable to control slide end state
 	} = $props();
 
-	let currentIndex = $state(0);
-	let mediaItems = $state(data?.data?.data?.items || []);
+	let data = $state<MediaResponse | null>(null);
+	let isLoading = $state(true);
+	let mediaItems: any = $state([]);
 	let imageTimer: any = $state(null);
+	let splideComponent: any = $state(null);
+	let currentIndex = $state(0);
 	let currentItem = $derived(mediaItems[currentIndex]);
 
-	function nextSlide() {
-		if (mediaItems.length > 1) {
-			currentIndex = (currentIndex + 1) % mediaItems.length;
-			// Clear image timer when moving to next slide
-			clearImageTimer();
-			invalidate(Invalidate.Media);
+	// Fetch media data
+	async function fetchMediaData() {
+		try {
+			isLoading = true;
+			const response = await fetch('https://mading-dashboard.krapyak.id/api/media');
+			data = (await response.json()) as MediaResponse;
+		} catch (error) {
+			console.error('Error fetching media data:', error);
+			data = {
+				success: false,
+				message: 'Failed to fetch media data',
+				data: {
+					items: [],
+					pagination: {
+						current_page: 1,
+						per_page: 10,
+						total: 0,
+						last_page: 1,
+						from: 0,
+						to: 0,
+						has_more_pages: false
+					}
+				}
+			};
+		} finally {
+			isLoading = false;
 		}
 	}
 
-	function prevSlide() {
-		if (mediaItems.length > 0) {
-			currentIndex = currentIndex === 0 ? mediaItems.length - 1 : currentIndex - 1;
-		}
-	}
+	// Fetch data on component mount
+	$effect(() => {
+		fetchMediaData();
+	});
 
-	function goToSlide(index: number) {
-		currentIndex = index;
+	// Update mediaItems when data changes
+	$effect(() => {
+		if (data?.success && data.data?.items) {
+			mediaItems = data.data.items;
+			isLoading = false;
+		} else {
+			mediaItems = [];
+		}
+	});
+
+	function handleSlideMoved(e: any) {
+		currentIndex = e.detail.index;
+		clearImageTimer();
+		invalidate(Invalidate.Media);
 	}
 
 	function handleVideoEnded() {
-		if (currentIndex < mediaItems.length - 1) {
+		if (splideComponent && currentIndex < mediaItems.length - 1) {
 			// If video ends and not at last item, go to next slide
-			nextSlide();
+			splideComponent.go('+1');
 		} else {
-			// If at last item, clear image timer and set slideEnded
-			console.log('Video ended, clearing timer and setting slideEnded');
+			// If at last item, set slideEnded
+			console.log('Video ended, setting slideEnded');
 			setTimeout(() => {
 				slideEnded = true;
 			}, 1000); // Small delay to ensure transition completes
@@ -55,7 +91,9 @@
 		if (currentItem?.type === 'image' && imageTimer === null) {
 			// Auto-advance images every 5 seconds
 			imageTimer = setTimeout(() => {
-				nextSlide();
+				if (splideComponent) {
+					splideComponent.go('+1');
+				}
 			}, 5000);
 		}
 		if (currentIndex === mediaItems.length - 1 && currentItem?.type !== 'video') {
@@ -69,31 +107,58 @@
 	});
 </script>
 
-{#if mediaItems.length > 0}
-	<!-- Full Screen Media Display -->
-	<div class="relative h-full w-full overflow-hidden">
-		{#each mediaItems as item, index}
-			<div
-				class="absolute inset-0 transition-transform duration-300 ease-in-out"
-				style="transform: translateX({(index - currentIndex) * 100}%)"
-			>
-				<div class="h-full w-full">
+{#if isLoading}
+	<div class="flex h-full items-center justify-center text-gray-400">
+		<div class="text-center">
+			<div class="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-b-2 border-green-500"></div>
+			<p class="text-sm">Loading media...</p>
+		</div>
+	</div>
+{:else if mediaItems.length > 0}
+	<!-- Splide Media Display -->
+	<Splide
+		bind:this={splideComponent}
+		on:move={handleSlideMoved}
+		options={{
+			type: 'loop',
+			pagination: true,
+			arrows: true,
+			autoplay: true,
+			height: '100vh',
+			width: '100%',
+			cover: true,
+			focus: 'center',
+			trimSpace: false,
+			classes: {
+				arrows: 'splide__arrows custom-arrows',
+				arrow: 'splide__arrow custom-arrow',
+				prev: 'splide__arrow--prev custom-prev',
+				next: 'splide__arrow--next custom-next',
+				pagination: 'splide__pagination custom-pagination',
+				page: 'splide__pagination__page custom-page'
+			}
+		}}
+		class="h-full w-full"
+	>
+		{#each mediaItems as item}
+			<SplideSlide>
+				<div class="flex h-full w-full items-center justify-center bg-gray-900">
 					{#if item.type === 'image'}
 						<img
 							src={item.full_url}
-							alt={item.original_name}
-							class="h-full w-full object-cover"
+							alt={item.filename}
+							class="max-h-full max-w-full object-contain"
 							loading="lazy"
 						/>
 					{:else if item.type === 'video'}
 						<!-- svelte-ignore a11y_media_has_caption -->
 						<video
 							src={item.full_url}
-							autoplay
+							autoplay={true}
 							loop={false}
 							muted
 							playsinline
-							class="h-full w-full"
+							class="max-h-full max-w-full object-contain"
 							preload="metadata"
 							controls
 							onended={handleVideoEnded}
@@ -102,60 +167,12 @@
 						</video>
 					{/if}
 				</div>
-			</div>
+			</SplideSlide>
 		{/each}
-
-		<!-- Navigation Arrows (minimal design) -->
-		{#if mediaItems.length > 1}
-			<button
-				onclick={() => {
-					clearImageTimer();
-					prevSlide();
-				}}
-				aria-label="Previous Media"
-				class="bg-opacity-30 hover:bg-opacity-60 absolute top-1/2 left-4 z-10 -translate-y-1/2 transform rounded-full bg-black p-3 text-white transition-all duration-200"
-			>
-				<svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M15 19l-7-7 7-7"
-					/>
-				</svg>
-			</button>
-
-			<button
-				onclick={() => {
-					clearImageTimer();
-					nextSlide();
-				}}
-				aria-label="Next Media"
-				class="bg-opacity-30 hover:bg-opacity-60 absolute top-1/2 right-4 z-10 -translate-y-1/2 transform rounded-full bg-black p-3 text-white transition-all duration-200"
-			>
-				<svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-				</svg>
-			</button>
-		{/if}
-
-		<!-- Simple dots indicator at bottom -->
-		{#if mediaItems.length > 1}
-			<div class="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 transform gap-2">
-				{#each mediaItems as _, index}
-					<button
-						onclick={() => {
-							clearImageTimer();
-							goToSlide(index);
-						}}
-						aria-label={`Go to media ${index + 1}`}
-						class="h-3 w-3 rounded-full transition-all duration-200 {index === currentIndex
-							? 'bg-white'
-							: 'hover:bg-opacity-75 bg-gray-400'}"
-					></button>
-				{/each}
-			</div>
-		{/if}
+	</Splide>
+{:else if isLoading}
+	<div class="flex h-full items-center justify-center">
+		<div class="text-center text-white">Memuat...</div>
 	</div>
 {:else}
 	<!-- No Media State -->
