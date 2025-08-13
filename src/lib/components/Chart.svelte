@@ -103,7 +103,7 @@
 						text: title,
 						color: '#e2e8f0',
 						font: {
-							size: 16,
+							size: 12,
 							weight: 'bold'
 						}
 					},
@@ -111,11 +111,11 @@
 						position: 'bottom',
 						labels: {
 							color: '#e2e8f0',
-							padding: 15,
+							padding: 8,
 							usePointStyle: true,
 							pointStyle: 'circle',
 							font: {
-								size: 11
+								size: 9
 							}
 						}
 					},
@@ -125,8 +125,9 @@
 						bodyColor: '#cbd5e1',
 						borderColor: 'rgba(99, 102, 241, 0.5)',
 						borderWidth: 1,
-						cornerRadius: 8,
-						displayColors: true
+						cornerRadius: 6,
+						displayColors: true,
+						padding: 8
 					}
 				},
 				scales: chartType !== 'pie' && chartType !== 'doughnut' ? {
@@ -134,7 +135,7 @@
 						ticks: {
 							color: '#cbd5e1',
 							font: {
-								size: 11
+								size: 9
 							}
 						},
 						grid: {
@@ -146,7 +147,7 @@
 						ticks: {
 							color: '#cbd5e1',
 							font: {
-								size: 11
+								size: 9
 							}
 						},
 						grid: {

@@ -110,58 +110,60 @@
 {#if isLoading}
 	<div class="flex h-full items-center justify-center text-gray-400">
 		<div class="text-center">
-			<div class="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-b-2 border-green-500"></div>
-			<p class="text-sm">Loading media...</p>
+			<div class="mx-auto mb-2 h-6 w-6 animate-spin rounded-full border-b-2 border-green-500"></div>
+			<p class="text-xs">Loading media...</p>
 		</div>
 	</div>
 {:else if mediaItems.length > 0}
 	<!-- Splide Media Display -->
-	<Splide
-		bind:this={splideComponent}
-		on:move={handleSlideMoved}
-		options={{
-			type: 'loop',
-			autoplay: true,
-			pagination: false,
-			arrows: false,
-			height: '100vh',
-			width: '100%',
-			cover: true,
-			focus: 'center',
-			trimSpace: false,
-		}}
-		class="h-full w-full"
-	>
-		{#each mediaItems as item}
-			<SplideSlide>
-				<div class="flex h-full w-full items-center justify-center">
-					{#if item.type === 'image'}
-						<img
-							src={item.full_url}
-							alt={item.filename}
-							class="max-h-full max-w-full object-contain"
-							loading="lazy"
-						/>
-					{:else if item.type === 'video'}
-						<!-- svelte-ignore a11y_media_has_caption -->
-						<video
-							src={item.full_url}
-							autoplay={true}
-							loop={false}
-							muted
-							playsinline
-							class="max-h-full max-w-full object-contain"
-							preload="metadata"
-							controls
-							onended={handleVideoEnded}
-						>
-							Your browser does not support the video tag.
-						</video>
-					{/if}
-				</div>
-			</SplideSlide>
-		{/each}
-	</Splide>
+	<div class="flex h-full w-full items-center justify-center">
+		<Splide
+			bind:this={splideComponent}
+			on:move={handleSlideMoved}
+			options={{
+				type: 'loop',
+				autoplay: true,
+				pagination: false,
+				arrows: false,
+				height: '100%',
+				width: '100%',
+				cover: false,
+				focus: 'center',
+				trimSpace: false,
+			}}
+			class="h-full w-full flex items-center justify-center"
+		>
+			{#each mediaItems as item}
+				<SplideSlide class="flex items-center justify-center">
+					<div class="flex h-full w-full items-center justify-center p-2">
+						{#if item.type === 'image'}
+							<img
+								src={item.full_url}
+								alt={item.filename}
+								class="max-h-full max-w-full object-contain rounded-lg shadow-lg"
+								loading="lazy"
+							/>
+						{:else if item.type === 'video'}
+							<!-- svelte-ignore a11y_media_has_caption -->
+							<video
+								src={item.full_url}
+								autoplay={true}
+								loop={false}
+								muted
+								playsinline
+								class="max-h-full max-w-full object-contain rounded-lg shadow-lg"
+								preload="metadata"
+								controls
+								onended={handleVideoEnded}
+							>
+								Your browser does not support the video tag.
+							</video>
+						{/if}
+					</div>
+				</SplideSlide>
+			{/each}
+		</Splide>
+	</div>
 {:else if isLoading}
 	<div class="flex h-full items-center justify-center">
 		<div class="text-center text-white">Memuat...</div>
@@ -170,8 +172,8 @@
 	<!-- No Media State -->
 	<div class="flex h-full items-center justify-center">
 		<div class="text-center text-white">
-			<div class="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-gray-600">
-				<svg class="h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<div class="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-gray-600">
+				<svg class="h-8 w-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path
 						stroke-linecap="round"
 						stroke-linejoin="round"
@@ -180,8 +182,8 @@
 					/>
 				</svg>
 			</div>
-			<h3 class="mb-2 text-xl font-semibold">No Media Found</h3>
-			<p class="text-gray-400">There are no images or videos to display at the moment.</p>
+			<h3 class="mb-1 text-lg font-semibold">No Media Found</h3>
+			<p class="text-gray-400 text-sm">There are no images or videos to display at the moment.</p>
 		</div>
 	</div>
 {/if}
