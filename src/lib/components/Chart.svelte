@@ -90,17 +90,7 @@
 		}
 	}
 
-	onMount(() => {
-		let chartData;
-		
-		if (data) {
-			chartData = data;
-		} else {
-			fetchDummyData().then(fetchedData => {
-				chartData = fetchedData;
-			});
-		}
-
+	function createChart(chartData: any) {
 		const config = {
 			type: chartType,
 			data: chartData,
@@ -180,6 +170,26 @@
 		
 		// @ts-ignore
 		chart = new Chart(canvas, config);
+	}
+
+	async function initializeChart() {
+		let chartData;
+		
+		if (data) {
+			chartData = data;
+		} else {
+			chartData = await fetchDummyData();
+		}
+		
+		createChart(chartData);
+	}
+
+	onMount(() => {
+		if (data) {
+			createChart(data);
+		} else {
+			initializeChart();
+		}
 
 		return () => {
 			if (chart) {

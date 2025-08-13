@@ -121,28 +121,20 @@
 		on:move={handleSlideMoved}
 		options={{
 			type: 'loop',
-			pagination: true,
-			arrows: true,
 			autoplay: true,
+			pagination: false,
+			arrows: false,
 			height: '100vh',
 			width: '100%',
 			cover: true,
 			focus: 'center',
 			trimSpace: false,
-			classes: {
-				arrows: 'splide__arrows custom-arrows',
-				arrow: 'splide__arrow custom-arrow',
-				prev: 'splide__arrow--prev custom-prev',
-				next: 'splide__arrow--next custom-next',
-				pagination: 'splide__pagination custom-pagination',
-				page: 'splide__pagination__page custom-page'
-			}
 		}}
 		class="h-full w-full"
 	>
 		{#each mediaItems as item}
 			<SplideSlide>
-				<div class="flex h-full w-full items-center justify-center bg-gray-900">
+				<div class="flex h-full w-full items-center justify-center">
 					{#if item.type === 'image'}
 						<img
 							src={item.full_url}
