@@ -3,6 +3,7 @@
 	import type { MediaResponse } from '$lib/types/all_types.js';
 	import { Splide, SplideSlide } from '@splidejs/svelte-splide';
 	import '@splidejs/svelte-splide/css';
+	import { optimizedImageUrl } from '$lib/utils/image.js';
 
 	let {
 		slideEnded = $bindable(false) // Bindable to control slide end state
@@ -15,6 +16,10 @@
 	let splideComponent: any = $state(null);
 	let currentIndex = $state(0);
 	let currentItem = $derived(mediaItems[currentIndex]);
+	let firstImageUrl = $derived.by(() => {
+		const first = mediaItems.find((i: any) => i.type === 'image');
+		return first ? optimizedImageUrl(first.full_url, 1920, 80) : '';
+	});
 
 	// Fetch media data
 	async function fetchMediaData() {
@@ -104,6 +109,12 @@
 	});
 </script>
 
+<svelte:head>
+	{#if firstImageUrl}
+		<link rel="preload" as="image" href={firstImageUrl} />
+	{/if}
+</svelte:head>
+
 {#if isLoading}
 	<div class="flex h-full w-full items-center justify-center p-4">
 		<div class="h-full w-full animate-pulse rounded-lg bg-white/5"></div>
@@ -132,10 +143,11 @@
 					<div class="flex h-full w-full items-center justify-center p-2">
 						{#if item.type === 'image'}
 							<img
-								src={item.full_url}
+								src={optimizedImageUrl(item.full_url, 1920, 80)}
 								alt={item.filename}
 								class="max-h-full max-w-full object-contain rounded-lg shadow-lg"
-								loading="lazy"
+								loading={currentIndex === 0 ? 'eager' : 'lazy'}
+								fetchpriority={currentIndex === 0 ? 'high' : 'auto'}
 							/>
 						{:else if item.type === 'video'}
 							<!-- svelte-ignore a11y_media_has_caption -->
