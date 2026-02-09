@@ -26,7 +26,7 @@
 
 	const fetchJadwal = async () => {
 		try {
-			const response = await fetch('https://ma.krapyak.id/api/livejadwal.php');
+			const response = await fetch('/api/livejadwal');
 			const data = await response.json();
 			jadwalData = data;
 
@@ -77,13 +77,13 @@
 </script>
 
 <div class="flex h-full flex-col">
-	<div class="mb-2 flex items-center justify-between">
+	<div class="mb-3 flex items-center justify-between">
 		<div class="flex items-center space-x-2">
-			<div class="h-2 w-2 rounded-full bg-gradient-to-r from-green-400 to-blue-500"></div>
-			<h3 class="text-sm font-semibold text-white">Jadwal Hari Ini</h3>
+			<div class="h-2.5 w-2.5 rounded-full bg-gradient-to-r from-teal-400 to-cyan-500"></div>
+			<h3 class="text-base font-bold text-white">Jadwal Pelajaran Hari Ini</h3>
 		</div>
 		{#if jadwalData}
-			<div class="rounded bg-white/10 px-2 py-1 text-xs text-blue-200/80">
+			<div class="rounded-full bg-white/10 px-3 py-1 text-sm text-slate-400">
 				{jadwalData.tanggal}
 			</div>
 		{/if}
@@ -92,10 +92,10 @@
 	{#if jadwalData}
 		<div class="flex-1 overflow-hidden">
 			<!-- Judul Kelas -->
-			<div class="mb-2 flex h-6 items-center justify-center">
+			<div class="mb-3 flex h-8 items-center justify-center">
 				{#if isVisible}
 					<h4
-						class="bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-center text-lg font-bold text-transparent text-white"
+						class="bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-center text-2xl font-bold text-transparent"
 						in:fly={{ x: 200, duration: 400, delay: 0 }}
 						out:fly={{ x: -200, duration: 300 }}
 					>
@@ -105,13 +105,13 @@
 			</div>
 
 			<!-- Tabel Jadwal -->
-			<div class="max-h-[calc(100%-3rem)] min-h-[180px] overflow-y-auto">
+			<div class="max-h-[calc(100%-4rem)] min-h-[180px] overflow-y-auto">
 				<table class="w-full">
 					<thead>
 						<tr class="border-b border-white/20">
-							<th class="px-2 py-1 text-left font-medium text-blue-200/90">Jam</th>
-							<th class="px-2 py-1 text-left font-medium text-blue-200/90">Mata Pelajaran</th>
-							<th class="px-2 py-1 text-left font-medium text-blue-200/90">Guru</th>
+							<th class="px-3 py-2 text-left text-sm font-semibold text-slate-400">Jam</th>
+							<th class="px-3 py-2 text-left text-sm font-semibold text-slate-400">Mata Pelajaran</th>
+							<th class="px-3 py-2 text-left text-sm font-semibold text-slate-400">Guru Pengampu</th>
 						</tr>
 					</thead>
 					<tbody class="min-h-[180px]">
@@ -130,13 +130,13 @@
 										delay: (jadwalData.jadwal[currentKelas].length - index - 1) * 40
 									}}
 								>
-									<td class="px-2 py-1 text-white/90">
+									<td class="px-3 py-2 text-base font-medium text-white/90">
 										{index + 1}
 									</td>
-									<td class="px-2 py-1 text-white/90">
+									<td class="px-3 py-2 text-base text-white/90">
 										{item.mapel}
 									</td>
-									<td class="px-2 py-1 text-white/90">
+									<td class="px-3 py-2 text-base text-white/70">
 										{item.guru}
 									</td>
 								</tr>
@@ -147,21 +147,32 @@
 			</div>
 
 			<!-- Progress indicator -->
-			<div class="mt-2 flex justify-center space-x-1">
+			<div class="mt-3 flex justify-center space-x-1.5">
 				{#each kelasArray as _, index}
 					<div
-						class="h-1 w-6 rounded-full transition-all duration-500 {index === currentIndex
-							? 'bg-gradient-to-r from-green-400 to-blue-500'
+						class="h-1.5 w-8 rounded-full transition-all duration-500 {index === currentIndex
+							? 'bg-gradient-to-r from-teal-400 to-cyan-400'
 							: 'bg-white/20'}"
 					></div>
 				{/each}
 			</div>
 		</div>
 	{:else}
-		<div class="flex flex-1 items-center justify-center">
-			<div class="text-center">
-				<div class="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-b-2 border-white"></div>
-				<p class="text-white/70">Memuat jadwal...</p>
+		<div class="flex-1 space-y-3">
+			<div class="h-6 w-32 mx-auto animate-pulse rounded bg-white/10"></div>
+			<div class="space-y-2">
+				<div class="grid grid-cols-[0.5fr,2fr,2fr] gap-2 pb-2 border-b border-white/10">
+					<div class="h-4 animate-pulse rounded bg-white/10"></div>
+					<div class="h-4 animate-pulse rounded bg-white/10"></div>
+					<div class="h-4 animate-pulse rounded bg-white/10"></div>
+				</div>
+				{#each Array(5) as _}
+					<div class="grid grid-cols-[0.5fr,2fr,2fr] gap-2">
+						<div class="h-4 animate-pulse rounded bg-white/5"></div>
+						<div class="h-4 animate-pulse rounded bg-white/5"></div>
+						<div class="h-4 animate-pulse rounded bg-white/5"></div>
+					</div>
+				{/each}
 			</div>
 		</div>
 	{/if}

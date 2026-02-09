@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { invalidate } from '$app/navigation';
-	import { Invalidate } from '$lib/enums/invalidate';
+	import { onMount } from 'svelte';
 	import type { MediaResponse } from '$lib/types/all_types.js';
 	import { Splide, SplideSlide } from '@splidejs/svelte-splide';
 	import '@splidejs/svelte-splide/css';
@@ -21,7 +20,7 @@
 	async function fetchMediaData() {
 		try {
 			isLoading = true;
-			const response = await fetch('https://mading-dashboard.krapyak.id/api/media');
+			const response = await fetch('/api/media');
 			data = (await response.json()) as MediaResponse;
 		} catch (error) {
 			console.error('Error fetching media data:', error);
@@ -46,8 +45,7 @@
 		}
 	}
 
-	// Fetch data on component mount
-	$effect(() => {
+	onMount(() => {
 		fetchMediaData();
 	});
 
@@ -64,7 +62,6 @@
 	function handleSlideMoved(e: any) {
 		currentIndex = e.detail.index;
 		clearImageTimer();
-		invalidate(Invalidate.Media);
 	}
 
 	function handleVideoEnded() {
@@ -108,11 +105,8 @@
 </script>
 
 {#if isLoading}
-	<div class="flex h-full items-center justify-center text-gray-400">
-		<div class="text-center">
-			<div class="mx-auto mb-2 h-6 w-6 animate-spin rounded-full border-b-2 border-green-500"></div>
-			<p class="text-xs">Loading media...</p>
-		</div>
+	<div class="flex h-full w-full items-center justify-center p-4">
+		<div class="h-full w-full animate-pulse rounded-lg bg-white/5"></div>
 	</div>
 {:else if mediaItems.length > 0}
 	<!-- Splide Media Display -->
@@ -163,10 +157,6 @@
 				</SplideSlide>
 			{/each}
 		</Splide>
-	</div>
-{:else if isLoading}
-	<div class="flex h-full items-center justify-center">
-		<div class="text-center text-white">Memuat...</div>
 	</div>
 {:else}
 	<!-- No Media State -->

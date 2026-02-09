@@ -45,9 +45,52 @@ export interface PresensiResponse {
 }
 
 export interface PresensiItem {
-  nama_kelas: string; // e.g. "XI-TKJ"
-  mapel: string; // e.g. "MATEMATIKA"
-  jam: string; // e.g. "07:30 - 09:00"
-  nama_siswa: string; // e.g. "Ahmad Fauzan"
-  presensi: "A" | "I" | "S"; // atau bisa `string` jika masih belum pasti
+  nama_kelas: string;
+  mapel: string;
+  jam: string;
+  nama_siswa: string;
+  presensi: "A" | "I" | "S" | string;
+}
+
+export interface PrayerTimings {
+  Fajr: string;
+  Sunrise: string;
+  Dhuhr: string;
+  Asr: string;
+  Maghrib: string;
+  Isha: string;
+  Imsak: string;
+  [key: string]: string;
+}
+
+export interface PrayerTimesResponse {
+  code: number;
+  status: string;
+  data: {
+    timings: PrayerTimings;
+    date: {
+      readable: string;
+      hijri: {
+        date: string;
+        day: string;
+        month: { number: number; en: string; ar: string };
+        year: string;
+      };
+      gregorian: {
+        date: string;
+        day: string;
+        month: { number: number; en: string };
+        year: string;
+      };
+    };
+  };
+}
+
+export interface PresensiStats {
+  kelas: string;
+  hadir: number;
+  izin: number;
+  sakit: number;
+  alpa: number;
+  total: number;
 }

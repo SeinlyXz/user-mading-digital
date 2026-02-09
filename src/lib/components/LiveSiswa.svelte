@@ -1,254 +1,235 @@
 <script lang="ts">
-  import type { PresensiResponse } from '$lib/types/all_types.js';
-  
-  let { 
-    scrolledToEnd = $bindable(false) // Bindable to control scroll end state
-  } = $props();
+	import { onMount } from 'svelte';
+	import type { PresensiResponse, PresensiItem } from '$lib/types/all_types.js';
 
-  let data = $state<PresensiResponse | null>(null);
-  let isLoading = $state(true);
-  let tableContainer = $state<HTMLDivElement>();
-  let currentScrollPosition = $state(0);
-  let isScrollingDown = $state(true);
-  let isPaused = $state(false); // State untuk pause saat di ujung
-  let dateNow = new Date().toLocaleDateString('id-ID', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-  
-  // Fetch live siswa data
-  async function fetchLiveSiswaData() {
-    try {
-      isLoading = true;
-      const response = await fetch('https://ma.krapyak.id/api/livesiswa.php');
-      data = await response.json() as PresensiResponse;
-    } catch (error) {
-      console.error('Error fetching live siswa data:', error);
-      data = null;
-    } finally {
-      isLoading = false;
-    }
-  }
-  
-  // Fetch data on component mount
-  $effect(() => {
-    fetchLiveSiswaData();
-  });
-  
-  // Gradual autoscroll function
-  function gradualScroll() {
-    if (!tableContainer || isPaused) return;
-    
-    const maxScroll = tableContainer.scrollHeight - tableContainer.clientHeight;
-    const scrollStep = 1; // pixels per step
-    
-    if (isScrollingDown) {
-      currentScrollPosition += scrollStep;
-      if (currentScrollPosition >= maxScroll) {
-        currentScrollPosition = maxScroll;
-        scrolledToEnd = true;
-        isPaused = true;
-        
-        // Wait 3 seconds at bottom before scrolling back up
-        setTimeout(() => {
-          isScrollingDown = false;
-          isPaused = false;
-        }, 3000);
-      }
-    } else {
-      // Scrolling up
-      currentScrollPosition -= scrollStep;
-      if (currentScrollPosition <= 0) {
-        currentScrollPosition = 0;
-        scrolledToEnd = false;
-        isPaused = true;
-        
-        // Wait 3 seconds at top before scrolling down again
-        setTimeout(() => {
-          isScrollingDown = true;
-          isPaused = false;
-        }, 3000);
-      }
-    }
-    
-    tableContainer.scrollTo({
-      top: currentScrollPosition,
-      behavior: 'auto' // Use auto for smooth continuous scrolling
-    });
-  }
+	let {
+		scrolledToEnd = $bindable(false)
+	} = $props();
 
-  // Auto scroll when data changes - reset to top
-  $effect(() => {
-    // @ts-ignore
-    if (data?.data.length > 0) {
-      currentScrollPosition = 0;
-      isScrollingDown = true;
-      scrolledToEnd = false;
-      isPaused = false;
-      if (tableContainer) {
-        tableContainer.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    }
-  });
+	let data = $state<PresensiResponse | null>(null);
+	let isLoading = $state(true);
+	let scrollWrapper = $state<HTMLDivElement>();
+	let scrollInner = $state<HTMLDivElement>();
+	let scrollDistance = $state(0);
+	let scrollDuration = $state(0);
+	let animationState = $state<'down' | 'paused-bottom' | 'up' | 'paused-top'>('paused-top');
+	let dateNow = new Date().toLocaleDateString('id-ID', {
+		weekday: 'long',
+		year: 'numeric',
+		month: 'long',
+		day: 'numeric'
+	});
 
-  // Gradual scroll every 50ms for smooth movement
-  $effect(() => {
-    const interval = setInterval(() => {
-      // @ts-ignore
-      if (data?.data?.length > 0) {
-        gradualScroll();
-      }
-    }, 50); // Mengurangi interval untuk scroll yang lebih halus
+	let summary = $derived.by(() => {
+		if (!data?.data) return { total: 0, hadir: 0, izin: 0, sakit: 0, alpa: 0 };
+		let hadir = 0, izin = 0, sakit = 0, alpa = 0;
+		for (const item of data.data) {
+			if (item.presensi === 'I') izin++;
+			else if (item.presensi === 'S') sakit++;
+			else if (item.presensi === 'A') alpa++;
+			else hadir++;
+		}
+		return { total: data.data.length, hadir, izin, sakit, alpa };
+	});
 
-    return () => clearInterval(interval);
-  });
+	const SCROLL_SPEED = 30;
+	const PAUSE_DURATION = 3000;
+
+	interface GroupedKelas {
+		kelas: string;
+		jam: string;
+		items: PresensiItem[];
+	}
+
+	let grouped = $derived.by(() => {
+		if (!data?.data) return [];
+		const map = new Map<string, GroupedKelas>();
+		for (const item of data.data) {
+			const key = `${item.nama_kelas}__${item.jam}`;
+			let g = map.get(key);
+			if (!g) {
+				g = { kelas: item.nama_kelas, jam: item.jam, items: [] };
+				map.set(key, g);
+			}
+			g.items.push(item);
+		}
+		return Array.from(map.values());
+	});
+
+	async function fetchLiveSiswaData() {
+		try {
+			isLoading = true;
+			const response = await fetch('/api/livesiswa');
+			data = (await response.json()) as PresensiResponse;
+		} catch (error) {
+			console.error('Error fetching live siswa data:', error);
+			data = null;
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	function startScrollCycle() {
+		if (!scrollWrapper || !scrollInner) return;
+		const dist = scrollInner.scrollHeight - scrollWrapper.clientHeight;
+		if (dist <= 0) return;
+		scrollDistance = dist;
+		scrollDuration = dist / SCROLL_SPEED;
+		animationState = 'down';
+	}
+
+	function handleAnimationEnd() {
+		if (animationState === 'down') {
+			scrolledToEnd = true;
+			animationState = 'paused-bottom';
+			setTimeout(() => {
+				animationState = 'up';
+			}, PAUSE_DURATION);
+		} else if (animationState === 'up') {
+			scrolledToEnd = false;
+			animationState = 'paused-top';
+			setTimeout(() => {
+				animationState = 'down';
+			}, PAUSE_DURATION);
+		}
+	}
+
+	onMount(() => {
+		fetchLiveSiswaData();
+	});
+
+	$effect(() => {
+		if (grouped.length > 0 && scrollWrapper && scrollInner) {
+			requestAnimationFrame(() => startScrollCycle());
+		}
+	});
 </script>
 
-<div class="p-3 h-full relative">
-  <!-- Header Section -->
-  <section class="relative overflow-hidden">
-    <div class="mb-2 flex justify-center items-center space-x-2">
-      <h3 class="text-center font-semibold text-white">Data Siswa Live {dateNow}</h3>
-    </div>
-  </section>
-  
-  {#if isLoading}
-    <div class="flex items-center justify-center h-32">
-      <div class="text-center">
-        <div class="relative">
-          <!-- Animated loading spinner -->
-          <div class="animate-spin rounded-full h-8 w-8 border-4 border-blue-400/30 border-t-blue-400 mx-auto mb-3"></div>
-          <div class="absolute inset-0 animate-ping rounded-full h-8 w-8 border-2 border-cyan-400/20 mx-auto"></div>
-        </div>
-        <p class="text-blue-200/80 font-medium text-xs">Memuat data siswa...</p>
-        <div class="flex justify-center space-x-1 mt-1">
-          <div class="w-1 h-1 bg-blue-400 rounded-full animate-pulse"></div>
-          <div class="w-1 h-1 bg-purple-400 rounded-full animate-pulse delay-100"></div>
-          <div class="w-1 h-1 bg-cyan-400 rounded-full animate-pulse delay-200"></div>
-        </div>
-      </div>
-    </div>
-  {:else if data?.data && data.data.length > 0}
-    <div bind:this={tableContainer} class="overflow-auto max-h-[60dvh] rounded-xl scroll-smooth bg-white/5 before:backdrop-blur-sm relative">
-      <table class="w-full relative z-10 table-fixed">
-        <thead class="backdrop-blur-md sticky top-0 z-20 rounded-xl">
-          <tr>
-            <th class="w-[35%] ps-5 pe-1 py-4 text-left text-xs font-semibold text-violet-300 uppercase tracking-wider">
-              Nama
-            </th>
-            <th class="w-[15%] px-1 py-1 text-left text-xs font-semibold text-violet-300 uppercase tracking-wider">
-              Kelas
-            </th>
-            <th class="w-[20%] px-1 py-1 text-left text-xs font-semibold text-violet-300 uppercase tracking-wider">
-              Mapel
-            </th>
-            <th class="w-[15%] px-1 py-1 text-left text-xs font-semibold text-violet-300 uppercase tracking-wider">
-              Jam
-            </th>
-            <th class="w-[15%] px-1 py-1 text-center text-xs font-semibold text-violet-300 uppercase tracking-wider">
-              Ket
-            </th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-white/10">
-          {#each data.data as item, index}
-            <tr class="hover:bg-white/5 group relative">
-              <td class="ps-5 pe-1 py-1 text-xs font-medium text-white relative z-10">
-                <div class="flex items-center space-x-1">
-                  <div class="w-1 h-1 bg-green-400 rounded-full animate-pulse flex-shrink-0"></div>
-                  <span class="text-white truncate">{item.nama_siswa}</span>
-                </div>
-              </td>
-              <td class="px-1 py-1 text-xs text-blue-200/80 relative z-10">
-                <span class="bg-white/10 px-1 py-0.5 rounded text-xs font-medium border border-white/20 block text-center">
-                  {item.nama_kelas}
-                </span>
-              </td>
-              <td class="px-1 py-1 text-xs text-blue-200/80 relative z-10">
-                <span class="truncate block">{item.mapel}</span>
-              </td>
-              <td class="px-1 py-1 text-xs text-blue-200/80 relative z-10">
-                <div class="flex items-center space-x-0.5">
-                  <svg class="w-2 h-2 text-cyan-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
-                  </svg>
-                  <span class="truncate">{item.jam}</span>
-                </div>
-              </td>
-              <td class="px-1 py-1 text-center relative z-10">
-                {#if item.presensi === 'I'}
-                  <span class="inline-flex items-center px-1 py-0.5 text-xs font-semibold rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 backdrop-blur-sm">
-                    <svg class="w-2 h-2 mr-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                    </svg>
-                    I
-                  </span>
-                {:else if item.presensi === 'S'}
-                  <span class="inline-flex items-center px-1 py-0.5 text-xs font-semibold rounded-full bg-red-500/20 text-red-300 border border-red-500/30 backdrop-blur-sm">
-                    <svg class="w-2 h-2 mr-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                    </svg>
-                    S
-                  </span>
-                {:else if item.presensi === 'A'}
-                  <span class="inline-flex items-center px-1 py-0.5 text-xs font-semibold rounded-full bg-gray-500/20 text-gray-300 border border-gray-500/30 backdrop-blur-sm">
-                    <svg class="w-2 h-2 mr-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                    </svg>
-                    A
-                  </span>
-                {:else}
-                  <span class="inline-flex items-center px-1 py-0.5 text-xs font-semibold rounded-full bg-green-500/20 text-green-300 border border-green-500/30 backdrop-blur-sm">
-                    <svg class="w-2 h-2 mr-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                    </svg>
-                    {item.presensi}
-                  </span>
-                {/if}
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-  {:else}
-    <div class="text-center py-8 relative overflow-hidden">
-      <div class="relative z-10">
-        <!-- Animated empty state icon -->
-        <div class="relative mx-auto w-12 h-12 mb-4">
-          <div class="absolute inset-0 bg-gradient-to-br from-blue-400 to-purple-500 rounded-2xl opacity-20 animate-pulse"></div>
-          <div class="relative flex items-center justify-center w-full h-full">
-            <svg class="w-6 h-6 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-        </div>
-        
-        <h3 class="text-sm font-semibold text-blue-200 mb-1">Tidak ada data siswa</h3>
-        <p class="text-blue-300/70 text-xs">Data siswa akan ditampilkan di sini ketika tersedia</p>
-        
-        <!-- Floating dots animation -->
-        <div class="flex justify-center space-x-1 mt-2">
-          <div class="w-1 h-1 bg-blue-400/50 rounded-full animate-bounce"></div>
-          <div class="w-1 h-1 bg-purple-400/50 rounded-full animate-bounce delay-100"></div>
-          <div class="w-1 h-1 bg-cyan-400/50 rounded-full animate-bounce delay-200"></div>
-        </div>
-      </div>
-    </div>
-  {/if}
+<div class="relative h-full p-4">
+	<!-- Header Section -->
+	<section class="relative overflow-hidden">
+		<div class="mb-1 flex items-center justify-center space-x-2">
+			<h3 class="text-center text-lg font-bold text-white">Data Presensi Siswa</h3>
+		</div>
+		<p class="mb-3 text-center text-sm text-slate-400">{dateNow}</p>
+		{#if summary.total > 0}
+			<div class="mb-3 grid grid-cols-5 gap-2 text-center">
+				<div class="rounded-lg bg-white/5 px-2 py-1.5">
+					<p class="text-lg font-bold text-white">{summary.total}</p>
+					<p class="text-xs text-slate-400">Total</p>
+				</div>
+				<div class="rounded-lg bg-green-500/10 px-2 py-1.5">
+					<p class="text-lg font-bold text-green-400">{summary.hadir}</p>
+					<p class="text-xs text-green-400/70">Hadir</p>
+				</div>
+				<div class="rounded-lg bg-yellow-500/10 px-2 py-1.5">
+					<p class="text-lg font-bold text-yellow-400">{summary.izin}</p>
+					<p class="text-xs text-yellow-400/70">Izin</p>
+				</div>
+				<div class="rounded-lg bg-red-500/10 px-2 py-1.5">
+					<p class="text-lg font-bold text-red-400">{summary.sakit}</p>
+					<p class="text-xs text-red-400/70">Sakit</p>
+				</div>
+				<div class="rounded-lg bg-gray-500/10 px-2 py-1.5">
+					<p class="text-lg font-bold text-gray-400">{summary.alpa}</p>
+					<p class="text-xs text-gray-400/70">Alpa</p>
+				</div>
+			</div>
+		{/if}
+	</section>
+
+	{#if isLoading}
+		<div class="space-y-3">
+			<div class="grid grid-cols-5 gap-2">
+				{#each Array(5) as _}
+					<div class="rounded-lg bg-white/5 p-2">
+						<div class="h-6 animate-pulse rounded bg-white/10 mb-1"></div>
+						<div class="h-3 animate-pulse rounded bg-white/5 w-12 mx-auto"></div>
+					</div>
+				{/each}
+			</div>
+			<div class="rounded-xl bg-white/5 p-3 space-y-2">
+				{#each Array(8) as _}
+					<div class="grid grid-cols-[2fr,1fr,0.5fr] gap-2">
+						<div class="h-6 animate-pulse rounded bg-white/5"></div>
+						<div class="h-6 animate-pulse rounded bg-white/5"></div>
+						<div class="h-6 animate-pulse rounded-full bg-white/5 w-12 mx-auto"></div>
+					</div>
+				{/each}
+			</div>
+		</div>
+	{:else if grouped.length > 0}
+		<div
+			bind:this={scrollWrapper}
+			class="scroll-viewport relative max-h-[50dvh] overflow-hidden rounded-xl bg-white/5"
+		>
+			<div
+				bind:this={scrollInner}
+				class="scroll-content will-change-transform"
+				class:scroll-down={animationState === 'down'}
+				class:scroll-up={animationState === 'up'}
+				style:--scroll-distance="{scrollDistance}px"
+				style:--scroll-duration="{scrollDuration}s"
+				onanimationend={handleAnimationEnd}
+			>
+				{#each grouped as group}
+					<div class="border-b border-white/10 py-2">
+						<div class="flex items-center gap-3 px-4 py-2">
+							<span class="text-base font-bold text-teal-300">{group.kelas}</span>
+							<span class="text-sm text-slate-500">Jam ke-{group.jam}</span>
+							<span class="ml-auto rounded-full bg-teal-500/20 px-2.5 py-0.5 text-sm font-medium text-teal-300">{group.items.length} siswa</span>
+						</div>
+						<table class="w-full">
+							<tbody>
+								{#each group.items as item}
+									<tr class="border-t border-white/5">
+										<td class="py-1.5 pe-2 ps-6 text-base text-white">{item.nama_siswa}</td>
+										<td class="px-2 py-1.5 text-sm text-slate-400">{item.mapel}</td>
+										<td class="px-2 py-1.5 text-right">
+											{#if item.presensi === 'I'}
+												<span class="inline-flex items-center rounded-full border border-yellow-500/30 bg-yellow-500/20 px-3 py-0.5 text-sm font-semibold text-yellow-300">Izin</span>
+											{:else if item.presensi === 'S'}
+												<span class="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/20 px-3 py-0.5 text-sm font-semibold text-red-300">Sakit</span>
+											{:else if item.presensi === 'A'}
+												<span class="inline-flex items-center rounded-full border border-gray-500/30 bg-gray-500/20 px-3 py-0.5 text-sm font-semibold text-gray-300">Alpa</span>
+											{:else}
+												<span class="inline-flex items-center rounded-full border border-green-500/30 bg-green-500/20 px-3 py-0.5 text-sm font-semibold text-green-300">Hadir</span>
+											{/if}
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				{/each}
+			</div>
+		</div>
+	{:else}
+		<div class="flex flex-col items-center justify-center py-12 text-center">
+			<svg class="mb-3 h-10 w-10 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+			</svg>
+			<p class="text-sm text-slate-500">Tidak ada data siswa</p>
+		</div>
+	{/if}
 </div>
 
-<!-- Hide vertical scrollbar -->
-
 <style>
-  /* Hide vertical scrollbar */
-  .scroll-smooth::-webkit-scrollbar {
-    display: none;
-  }
-  .scroll-smooth {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
-  }
+	.scroll-content {
+		transform: translateY(0);
+	}
+	.scroll-down {
+		animation: scroll-down var(--scroll-duration) linear forwards;
+	}
+	.scroll-up {
+		animation: scroll-up var(--scroll-duration) linear forwards;
+	}
+	@keyframes scroll-down {
+		from { transform: translateY(0); }
+		to { transform: translateY(calc(var(--scroll-distance) * -1)); }
+	}
+	@keyframes scroll-up {
+		from { transform: translateY(calc(var(--scroll-distance) * -1)); }
+		to { transform: translateY(0); }
+	}
 </style>
- 
